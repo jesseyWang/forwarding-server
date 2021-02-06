@@ -17,9 +17,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define SERVER_IP "127.0.0.1"
+#define SERVER_IP "127.0.0.2"
 #define SERVER_PORT 8888
-#define EPOLL_SIZE 10000
+#define EPOLL_SIZE 10001
 #define BUF_SIZE 0xFFFF
 #define EXIT "EXIT"
 #define CLOSEERROR "Client close with errors."
@@ -38,9 +38,9 @@ static void addfd( int epollfd, int fd, bool enable_et, bool is_block )
 {
 	struct epoll_event ev;
 	ev.data.fd = fd;
-	ev.events = EPOLLIN | EPOLLOUT | EPOLLERR | EPOLLRDHUP;
+	ev.events = EPOLLIN | EPOLLERR | EPOLLRDHUP;
 	if( enable_et )
-		ev.events = EPOLLIN | EPOLLOUT | EPOLLERR | EPOLLET | EPOLLRDHUP;
+		ev.events = EPOLLIN | EPOLLERR | EPOLLET | EPOLLRDHUP;
 	
 	epoll_ctl(epollfd, EPOLL_CTL_ADD, fd, &ev);
 	

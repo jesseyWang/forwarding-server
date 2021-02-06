@@ -17,10 +17,12 @@ void PressureClient::Start(int clientNum, int postLen)
 {
 	static struct epoll_event ev, events[EPOLL_SIZE];
 	TcpDataWrap clientTcp;
-	// map<int, int>fd_id;
-	// map<int, int>id_fd;
+	map<int, int>fd_id;
+	map<int, int>id_fd;
+	map<int, int>::iterator it;
 
 	int i, connfd, recvNum = 0;
+	int selfID, toID, toconnfd;
 	struct timeval tpstart, tpend;
   	float timeuse;
 	char send_buf[postLen + 1];
@@ -38,12 +40,9 @@ void PressureClient::Start(int clientNum, int postLen)
 	
 	gettimeofday(&tpstart, NULL);
 	// 先把客户端都起起来
-	for(i = 1; i <= clientNum; i++)
+	for(i = 0; i < clientNum; i++)
 	{
 		Connect(i);
-		// 把自己的id发给服务器
-		send(sock[i], &i, sizeof(int), 0);
-
 	}
 	timeuse = 1000000 * (tpend.tv_sec - tpstart.tv_sec) + tpend.tv_usec - tpstart.tv_usec;
 	timeuse /= 1000000;
@@ -52,54 +51,47 @@ void PressureClient::Start(int clientNum, int postLen)
 	for(i = 0; i < clientNum; i++)
 	{
 		ev.data.fd = sock[i];
-		cout << "fd:" << sock[i] << endl; 
-		ev.events = EPOLLOUT;
+		ev.events = EPOLLIN | EPOLLOUT;
     	epoll_ctl(epfd, EPOLL_CTL_ADD, sock[i], &ev);
-		// fd_id.insert(pair<int, int>(sock[i], i + 1));
-		// id_fd.insert(pair<int, int>(i + 1, sock[i]));
+		fcntl(sock[i], F_SETFL, fcntl(sock[i], F_GETFD, 0)| O_NONBLOCK);
+		wait[i] = 1;
+		fd_id.insert(pair<int, int>(sock[i], i + 1));
+		id_fd.insert(pair<int, int>(i + 1, sock[i]));
   	}
 
 	gettimeofday(&tpstart, NULL);
 	while (true)
 	{
-		if(recvNum >= clientNum)
+		if(recvNum >= clientNum / 2)
 			break;
-		cout << "recvNum:" << recvNum << endl;
+		
 		int epoll_events_count = epoll_wait(epfd, events, EPOLL_SIZE, -1);
 		for(i = 0; i < epoll_events_count; i++)
 		{
 			connfd = events[i].data.fd;
+			it = fd_id.find(connfd);
+			selfID = it->second;
+			toID = selfID + clientNum / 2;			
 			if (events[i].events & EPOLLIN)
-            {			
+			{
 				char *recvBuf = new char[BUF_SIZE];
 				memset(recvBuf, 0, BUF_SIZE);
 				int tarID = 0;
 
 				clientTcp.recvUnpackData(connfd, &tarID, recvBuf);
-
+				cout << "selfID:" << selfID << endl;
 				cout << "recv:" << recvBuf << endl;
 
 				recvNum++;
 				delfd(epfd, connfd);
 				delete[] recvBuf;
+				wait[selfID - 1] == 1;
 			}
-			else if(events[i].events & EPOLLOUT)
+			else if((events[i].events & EPOLLOUT) && (wait[selfID - 1]) == 1)
             {
-				// map<int, int>::iterator it;
-				// it = fd_id.find(connfd);
-				// int toID, nextID, nextconnfd;
-				// toID = it -> second + clientNum / 2;
-				// nextID = it -> second + 1;
-				// nextconnfd = id_fd.find(nextID)->second;
-
-				// cout << "nextID:" << nextID << endl;
-				// cout << "nextconnfd:" << nextconnfd << endl;
-				cout << "cnnfd:" << connfd << endl;
-				clientTcp.sendPackData(connfd, connfd, send_buf, strlen(send_buf));
-				ev.events = EPOLLIN;
-				ev.data.fd = connfd;
+				clientTcp.sendPackData(connfd, toID, send_buf, strlen(send_buf));
 				
-				epoll_ctl(epfd, EPOLL_CTL_MOD, connfd, &ev);
+				wait[selfID - 1] == 0;
 			}
 		}
 	}
@@ -121,6 +113,7 @@ void PressureClient::Connect(int clientNo)
 		perror("connect error");
 		exit(-1);
 	}
+	send(sock[clientNo], &clientNo, sizeof(int), 0);
 }
 
 void PressureClient::Close()

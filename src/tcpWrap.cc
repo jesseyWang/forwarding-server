@@ -22,8 +22,8 @@ int TcpDataWrap::sendPackData(int sockfd, int tofd, char* buf, int bufLen)
 	memcpy(sendBuf + headSize + cmdSize, buf, bufLen);
 
 	// 客户端和服务器端的sockfd都相同
-	std::cout << "sendbuf:" << sendBuf + headSize + cmdSize << std::endl;
-	std::cout << "end of printing" << std::endl;
+	// std::cout << "sendbuf:" << sendBuf + headSize + cmdSize << std::endl;
+	// std::cout << "end of printing" << std::endl;
 	ret = send(sockfd, sendBuf, totalLen,0);	//发送数据
 	delete[] sendBuf;
 

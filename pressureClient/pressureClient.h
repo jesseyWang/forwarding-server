@@ -20,6 +20,8 @@ private:
 
 	int epfd;
 
+	int wait[EPOLL_SIZE];
+
 	struct sockaddr_in serverAddr;
 };
 

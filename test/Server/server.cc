@@ -78,6 +78,7 @@ int Server::ForwardingMessage(int clientfd)
 	}
 
 	it = idTofdMap.find(toID);
+	cout << "toID:" << toID << endl;
 	if(it != idTofdMap.end())
 	{
 		sendret = serverTcp.sendPackData(it->second, toID, recvBuf, strlen(recvBuf));
@@ -143,6 +144,7 @@ void Server::Start() {
 				}
 				else
 				{
+					cout << "client_id:" << client_id << endl;
 					// 供客户端为终端输入时使用，压力测试时无需此段代码
 					// if((it = idTofdMap.find(client_id)) != idTofdMap.end())
 					// {
