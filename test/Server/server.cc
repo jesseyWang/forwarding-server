@@ -46,7 +46,7 @@ void Server::Init() {
 		exit(-1);
 	}
 
-	addfd(epfd, listener, true, true);
+	addfd(epfd, listener, false, true);
 }
 
 void Server::Close() {
@@ -62,22 +62,26 @@ int Server::ForwardingMessage(int clientfd)
 
 	memset(recvBuf, 0, BUF_SIZE);
 	recvret = serverTcp.recvUnpackData(clientfd, &toID, recvBuf);
+	it = idTofdMap.find(toID);
 
 	if(recvret == 0)
 	{
+		idTofdMap.erase(it);
 		delfd(epfd, clientfd);
 		cout << CLOSENORMAL << endl;
+		return 0;
 	}
 	else if(recvret < 0)
 	{
 		if(errno != EAGAIN || errno != EINTR)
 		{
+			idTofdMap.erase(it);
 			delfd(epfd, clientfd);
-			cout << CLOSEERROR << endl;
+			cout << "2:" << CLOSEERROR << endl;
+			return 0;
 		}
 	}
 
-	it = idTofdMap.find(toID);
 	cout << "toID:" << toID << endl;
 	if(it != idTofdMap.end())
 	{
@@ -85,6 +89,7 @@ int Server::ForwardingMessage(int clientfd)
 		
 		if(sendret < 0)
 		{
+			delete[] recvBuf;
 			return sendret;
 		}
 	}
@@ -97,6 +102,7 @@ int Server::ForwardingMessage(int clientfd)
 
 		if(sendret < 0)
 		{
+			delete[] recvBuf;
 			return sendret;
 		}
 	}
@@ -132,10 +138,10 @@ void Server::Start() {
 				socklen_t client_addrLength = sizeof(struct sockaddr_in);
 				int clientfd = accept( listener, ( struct sockaddr* )&client_address, &client_addrLength );
 				
-				cout << "Client connection from: "
-				<< inet_ntoa(client_address.sin_addr) << ":"
-				<< ntohs(client_address.sin_port) << ", clientfd = "
-				<< clientfd << endl;
+				// cout << "Client connection from: "
+				// << inet_ntoa(client_address.sin_addr) << ":"
+				// << ntohs(client_address.sin_port) << ", clientfd = "
+				// << clientfd << endl;
 
 				int ret = recv(clientfd, &client_id, sizeof(int), 0);
 				if(ret < 0)
@@ -144,7 +150,7 @@ void Server::Start() {
 				}
 				else
 				{
-					cout << "client_id:" << client_id << endl;
+					// cout << "client_id:" << client_id << endl;
 					// 供客户端为终端输入时使用，压力测试时无需此段代码
 					// if((it = idTofdMap.find(client_id)) != idTofdMap.end())
 					// {
@@ -170,8 +176,22 @@ void Server::Start() {
 			else {
 				if(events[i].events & EPOLLERR || events[i].events & EPOLLRDHUP)
 				{
+					map<int, int>::iterator iter = idTofdMap.begin();
+					for (; iter != idTofdMap.end(); )
+					{
+						if (iter->second == events[i].data.fd)
+						{
+							idTofdMap.erase(iter);
+							break;
+						}
+						else
+						{
+							iter++;
+						}
+						
+					}
 					delfd(epfd, events[i].data.fd);
-					cout << CLOSEERROR << endl;
+					// cout << "1:" << CLOSEERROR << endl;
 					continue;
 				}
 				else
@@ -179,8 +199,8 @@ void Server::Start() {
 					int ret = ForwardingMessage(sockfd);
 					if(ret < 0) {
 						perror("error");
-						Close();
-						exit(-1);
+						// Close();
+						// exit(-1);
 					}
 				}
 			}

@@ -51,10 +51,14 @@ void PressureClient::Start(int clientNum, int postLen)
 	for(i = 0; i < clientNum; i++)
 	{
 		ev.data.fd = sock[i];
-		ev.events = EPOLLIN | EPOLLOUT;
+
+		if(i < clientNum / 2)
+			ev.events = EPOLLOUT | EPOLLONESHOT | EPOLLRDHUP | EPOLLERR;
+		else
+			ev.events = EPOLLIN | EPOLLRDHUP | EPOLLERR;
+
     	epoll_ctl(epfd, EPOLL_CTL_ADD, sock[i], &ev);
 		fcntl(sock[i], F_SETFL, fcntl(sock[i], F_GETFD, 0)| O_NONBLOCK);
-		wait[i] = 1;
 		fd_id.insert(pair<int, int>(sock[i], i + 1));
 		id_fd.insert(pair<int, int>(i + 1, sock[i]));
   	}
@@ -80,31 +84,34 @@ void PressureClient::Start(int clientNum, int postLen)
 
 				clientTcp.recvUnpackData(connfd, &tarID, recvBuf);
 				cout << "selfID:" << selfID << endl;
-				cout << "recv:" << recvBuf << endl;
+				// cout << "recv:" << recvBuf << endl;
 
 				recvNum++;
 				delfd(epfd, connfd);
 				delete[] recvBuf;
-				wait[selfID - 1] == 1;
 			}
-			else if((events[i].events & EPOLLOUT) && (wait[selfID - 1]) == 1)
+			else if(events[i].events & EPOLLOUT)
             {
 				clientTcp.sendPackData(connfd, toID, send_buf, strlen(send_buf));
-				
-				wait[selfID - 1] == 0;
+
+			}
+			else if(events[i].events & EPOLLERR || events[i].events & EPOLLRDHUP)
+			{
+				Close();
 			}
 		}
 	}
 	timeuse = 1000000 * (tpend.tv_sec - tpstart.tv_sec) + tpend.tv_usec - tpstart.tv_usec;
 	timeuse /= 1000000;
 	printf("echo time %lf s\n", timeuse);
-	
+
+	Close();
 }
 
 void PressureClient::Connect(int clientNo)
 {
 	sock[clientNo] = socket(PF_INET, SOCK_STREAM, 0);
-	if(sock < 0) {
+	if(sock[clientNo] < 0) {
 		perror("sock error");
 		exit(-1);
 	}
@@ -113,7 +120,8 @@ void PressureClient::Connect(int clientNo)
 		perror("connect error");
 		exit(-1);
 	}
-	send(sock[clientNo], &clientNo, sizeof(int), 0);
+	int selfID = clientNo + 1;
+	send(sock[clientNo], &selfID, sizeof(int), 0);
 }
 
 void PressureClient::Close()

@@ -1,0 +1,2 @@
+/usr/bin/ar qc libforwarding-server.a  CMakeFiles/forwarding-server.dir/tcpWrap.cc.o
+/usr/bin/ranlib libforwarding-server.a
