@@ -1,1 +1,0 @@
-/usr/bin/c++      CMakeFiles/PREClient.dir/pressureClient.cc.o CMakeFiles/PREClient.dir/pressureClientMain.cc.o  -o PREClient -rdynamic ../src/libforwarding-server.a -lpthread 

@@ -1,1 +1,0 @@
-/usr/bin/c++      CMakeFiles/Server.dir/serverMain.cc.o CMakeFiles/Server.dir/server.cc.o  -o Server -rdynamic ../../src/libforwarding-server.a -lpthread 
